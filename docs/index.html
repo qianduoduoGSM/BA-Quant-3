@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>双均线交叉策略量化回测分析报告</title>
+<script>
+MathJax = { tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$']] } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --card-hover: #273548;
+    --text: #e2e8f0; --text-secondary: #94a3b8; --accent: #f59e0b;
+    --accent-red: #ef4444; --accent-green: #22c55e; --accent-blue: #3b82f6;
+    --border: #334155; --radius: 12px; --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 16px; }
+  nav { position: fixed; top:0; left:0; width:260px; height:100vh; background: var(--card); border-right:1px solid var(--border); padding: 24px 20px; overflow-y:auto; z-index: 100; }
+  nav h2 { font-size:14px; letter-spacing:1px; color: var(--accent); margin-bottom:20px; }
+  nav a { display:block; padding:6px 0; color:var(--text-secondary); text-decoration:none; font-size:14px; }
+  nav a:hover { color:var(--accent); }
+  main { margin-left:260px; padding:48px 56px; max-width:1040px; }
+  h1 { font-size: 2.2em; font-weight: 800; margin-bottom: 16px; }
+  h2 { font-size:1.5em; font-weight:700; margin:48px 0 20px; padding-bottom:8px; border-bottom:2px solid var(--accent); display:inline-block; }
+  h3 { font-size:1.2em; font-weight:600; margin:32px 0 12px; color:var(--accent); }
+  h4 { font-size:1.05em; font-weight:600; margin:24px 0 10px; color:var(--accent-blue); }
+  p { margin-bottom:14px; color:var(--text-secondary); }
+  strong { color:var(--text); }
+  blockquote { border-left:4px solid var(--accent); padding:12px 20px; margin:16px 0; background: rgba(245,158,11,0.05); border-radius:0 var(--radius) var(--radius) 0; color:var(--text-secondary); }
+  .meta { background: var(--card); border-radius: var(--radius); padding:20px 28px; margin-bottom:32px; display:flex; flex-wrap:wrap; gap:16px 32px; font-size:14px; color:var(--text-secondary); box-shadow: var(--shadow); }
+  .meta span strong { color:var(--text); }
+  .table-wrapper { overflow-x:auto; margin:20px 0; }
+  table { width:100%; border-collapse:collapse; font-size:14px; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+  th { background: var(--accent); color:#0f172a; padding:12px 16px; text-align:center; font-weight:700; white-space:nowrap; }
+  td { background: var(--card); padding:10px 16px; border-bottom:1px solid var(--border); text-align:center; }
+  tr:hover td { background: var(--card-hover); }
+  td:first-child { text-align:left; font-weight:600; white-space:nowrap; }
+  .up { color:var(--accent-red); font-weight:700; }
+  .down { color:var(--accent-green); font-weight:700; }
+  .best { background: rgba(245,158,11,0.12) !important; font-weight:700; color:var(--accent); }
+  .chart-container { margin: 24px 0; border-radius: var(--radius); overflow:hidden; background: var(--card); box-shadow: var(--shadow); }
+  .chart-container img { width:100%; display:block; }
+  .chart-caption { padding:12px 20px; font-size:13px; color:var(--text-secondary); background: var(--card); border-top:1px solid var(--border); }
+  .card { background: var(--card); border-radius: var(--radius); padding:24px; margin:16px 0; box-shadow: var(--shadow); }
+  ul, ol { padding-left:24px; margin:8px 0 16px; color:var(--text-secondary); }
+  li { margin-bottom:6px; }
+  .ascii-chart { font-family:"Cascadia Code","Fira Code",monospace; font-size:13px; background: var(--card); padding:16px 20px; border-radius:var(--radius); margin:12px 0; white-space:pre; overflow-x:auto; line-height:1.4; color:#64748b; }
+  .finding { margin:10px 0; color:var(--text-secondary); }
+  .finding strong { color:var(--text); }
+  hr { border:none; border-top:1px solid var(--border); margin:36px 0; }
+  footer { margin-top:48px; padding:24px 0; border-top:1px solid var(--border); text-align:center; font-size:13px; color:var(--text-secondary); }
+  @media (max-width: 900px) { nav { width:100%; height:auto; position:relative; padding:16px; } nav a { display:inline-block; margin-right:12px; } main { margin-left:0; padding:24px; } h1 { font-size:1.6em; } }
+  mjx-container { color:var(--text) !important; }
+</style>
+</head>
+<body>
+<nav>
+  <h2>ANALYSIS REPORT</h2>
+  <a href="#header">Report Overview</a>
+  <a href="#sec1">1. Strategy Explained</a>
+  <a href="#sec2">2. Key Metrics</a>
+  <a href="#sec3">3. Stock Profiles</a>
+  <a href="#sec4">4. Results Comparison</a>
+  <a href="#sec4-1">&nbsp;&nbsp;4.1 BOC 601988</a>
+  <a href="#sec4-2">&nbsp;&nbsp;4.2 SMIC 688981</a>
+  <a href="#sec4-3">&nbsp;&nbsp;4.3 Visualization</a>
+  <a href="#sec4-4">&nbsp;&nbsp;4.4 Cross Comparison</a>
+  <a href="#sec5">5. Insights & Takeaways</a>
+  <a href="#appendix">Appendix: Full Data</a>
+</nav>
+<main>
+<div id="header">
+  <h1>Dual SMA Crossover Strategy<br>Quantitative Backtest Report</h1>
+  <div class="meta">
+    <span><strong>Date</strong> 2026-07-09</span>
+    <span><strong>Stocks</strong> BOC (601988.SH) · SMIC (688981.SH)</span>
+    <span><strong>Period</strong> 2021-10-11 ~ 2026-07-08 (4.75 yr)</span>
+    <span><strong>Data</strong> Tushare Pro, Forward-Adjusted Close</span>
+    <span><strong>Rules</strong> T+1 Open · Buy Cost 0.08% · Sell Cost 0.13%</span>
+  </div>
+</div>
+
+<h2 id="sec1">1. Dual SMA Crossover Strategy Explained</h2>
+
+<h3>1.1 What is a Moving Average?</h3>
+<p>The moving average is one of the most fundamental tools in technical analysis. It takes the average price over a fixed window, creating a smoothed curve that filters out daily noise and reveals the underlying trend direction.</p>
+
+<blockquote>
+<strong>Simple Moving Average (SMA)</strong>
+$$ \text{SMA}(n) = \frac{P_1 + P_2 + \dots + P_n}{n} $$
+where $P_i$ is the closing price on day $i$, and $n$ is the window length.
+</blockquote>
+
+<ul>
+  <li><strong>Short-term MA</strong> (e.g., SMA(5)) reacts quickly to price changes but is easily fooled by random noise.</li>
+  <li><strong>Long-term MA</strong> (e.g., SMA(15)) reacts slowly but better reflects the medium-to-long-term trend direction.</li>
+</ul>
+
+<h3>1.2 Core Logic</h3>
+<p>The dual SMA crossover uses two moving averages simultaneously:</p>
+<ul>
+  <li><strong>Fast MA</strong> — short-term trend, more responsive</li>
+  <li><strong>Slow MA</strong> — long-term trend, acts as an anchor</li>
+</ul>
+<p><strong>Core Idea</strong>: When the relationship between short-term and long-term trends flips, it signals a trend reversal — trade in that direction.</p>
+
+<h3>1.3 Golden Cross — BUY Signal</h3>
+<blockquote>
+<strong>Golden Cross</strong>: Fast MA crosses <strong>above</strong> Slow MA.<br>
+$ SMA_{\text{fast}}[t] > SMA_{\text{slow}}[t] $ AND $ SMA_{\text{fast}}[t-1] \le SMA_{\text{slow}}[t-1] $
+</blockquote>
+<p>Think of two boats: a speedboat (fast MA) and a cargo ship (slow MA). When the speedboat overtakes the cargo ship, short-term momentum is outpacing the long-term trend — prices are likely heading higher.</p>
+<p><strong>Signal</strong>: Buy pressure increasing, uptrend forming → <strong style="color:var(--accent-red)">BUY</strong></p>
+
+<div class="ascii-chart">
+Price
+     |                 ★ Golden Cross
+     |               ↗
+     |         ↗↗↗↗↗     ← SMA(5) fast MA crosses above
+     |   ↗↗↗↗
+     |↗↗────────────────   ← SMA(15) slow MA
+     +──────────────────→ Time
+</div>
+
+<h3>1.4 Death Cross — SELL Signal</h3>
+<blockquote>
+<strong>Death Cross</strong>: Fast MA crosses <strong>below</strong> Slow MA.<br>
+$ SMA_{\text{fast}}[t] < SMA_{\text{slow}}[t] $ AND $ SMA_{\text{fast}}[t-1] \ge SMA_{\text{slow}}[t-1] $
+</blockquote>
+<p>When the speedboat slows down and the cargo ship overtakes it, short-term momentum is exhausted — prices are likely heading lower.</p>
+<p><strong>Signal</strong>: Sell pressure increasing, downtrend forming → <strong style="color:var(--accent-green)">SELL</strong></p>
+
+<div class="ascii-chart">
+Price
+     |↘↘↘↘↘↘↘↘↘↘↘↘↘
+     |  ↘↘↘↘↘↘↘↘↘↘↘     ← SMA(5) fast MA crosses below
+     |   ↘↘↘↘↘↘↘↘↘↘↘
+     |        ↘↘★★★     ★ Death Cross
+     |           ↘──────────────── ← SMA(15)
+     +──────────────────→ Time
+</div>
+
+<h3>1.5 Three Strategy Parameter Sets</h3>
+<div class="table-wrapper">
+<table>
+  <tr><th>Strategy</th><th>Fast MA</th><th>Slow MA</th><th>Style</th></tr>
+  <tr><td><strong>Short-term</strong></td><td>SMA(5)</td><td>SMA(15)</td><td>1 wk vs 3 wk. Highly sensitive, frequent signals (~10/year)</td></tr>
+  <tr><td><strong>Mid-term</strong></td><td>SMA(10)</td><td>SMA(30)</td><td>2 wk vs 6 wk. Balanced sensitivity & stability (~5/year)</td></tr>
+  <tr><td><strong>Long-term</strong></td><td>SMA(20)</td><td>SMA(60)</td><td>1 mo vs 3 mo. Strong trend filter, sparse signals (~3/year)</td></tr>
+</table>
+</div>
+
+<h3>1.6 Execution Mechanism</h3>
+<div class="ascii-chart">
+Trading Day T              Trading Day T+1
++----------------+         +----------------+
+| After Close    |  -->    | At Open        |
+| Compute MAs    |         | Execute Trades |
+| Detect Crosses |         | Deduct Costs   |
+| Generate Signal|         | Update Position|
++----------------+         +----------------+
+</div>
+<ul>
+  <li><strong>No Look-ahead Bias</strong>: Signals are generated from T-day close data and executed at T+1 open — the backtest never "peeks" at the future.</li>
+  <li><strong>Long-only</strong>: No short selling (limited in A-shares). Buy on Golden Cross, sell on Death Cross. Cash when no position.</li>
+</ul>
+
+<hr>
+<h2 id="sec2">2. Quantitative Evaluation Metrics</h2>
+<p>Judging a strategy requires looking at both return AND risk. Here are the core metrics used in this report.</p>
+
+<h3>2.1 Cumulative Return</h3>
+<blockquote>
+$$ \text{CumReturn} = \left( \frac{\text{Final NAV}}{\text{Initial NAV}} - 1 \right) \times 100\% $$
+</blockquote>
+<p>If you invested 100K and ended with 150K, cumulative return = 50%. Most intuitive measure of profit.</p>
+<div class="table-wrapper">
+<table>
+  <tr><th>Cumulative Return</th><th>Rating</th></tr>
+  <tr><td>&gt; 100%</td><td>Excellent (doubled in 5 years)</td></tr>
+  <tr><td>50% ~ 100%</td><td>Good</td></tr>
+  <tr><td>0% ~ 50%</td><td>Average</td></tr>
+  <tr><td>&lt; 0%</td><td>Loss-making</td></tr>
+</table>
+</div>
+<p><strong>Caveat</strong>: Cumulative return hides the journey. A 100% return strategy might have endured a 50% drawdown — few can hold through that.</p>
+
+<h3>2.2 Maximum Drawdown (MDD)</h3>
+<blockquote>
+$$ \text{Peak}[t] = \max_{i=0}^{t} \text{Nav}[i] $$
+$$ \text{Drawdown}[t] = \frac{\text{Nav}[t] - \text{Peak}[t]}{\text{Peak}[t]} $$
+$$ \text{MDD} = \min_{t} \text{Drawdown}[t] $$
+</blockquote>
+<p>If your account goes from 100K → 180K (peak) → 144K (trough): MDD = (144 - 180)/180 = <strong>-20%</strong>.</p>
+<p>This measures the "worst-case scenario." Many strategies make money long-term but lose followers due to brutal interim drawdowns.</p>
+<div class="table-wrapper">
+<table>
+  <tr><th>MDD Range</th><th>Risk Level</th><th>Description</th></tr>
+  <tr><td>0% ~ -10%</td><td>Low</td><td>Minimal drawdown, comfortable holding</td></tr>
+  <tr><td>-10% ~ -20%</td><td>Moderate</td><td>Acceptable, requires some fortitude</td></tr>
+  <tr><td>-20% ~ -30%</td><td>Elevated</td><td>Needs strong psychology & capital management</td></tr>
+  <tr><td>&lt; -30%</td><td>High</td><td>May trigger stop-losses, hard for retail investors</td></tr>
+</table>
+</div>
+
+<h3>2.3 Sharpe Ratio</h3>
+<blockquote>
+$$ \text{Sharpe} = \frac{\bar{R}_{\text{daily}} - R_f}{\sigma_{\text{daily}}} \times \sqrt{244} $$
+$\bar{R}_{\text{daily}}$ = avg daily return, $R_f$ = risk-free rate (2% annual), $\sigma_{\text{daily}}$ = daily return std dev, 244 = A-share trading days/year.
+</blockquote>
+<p>Two strategies both return 100%, but Strategy A is smooth like a highway while Strategy B is a roller-coaster. Higher Sharpe = returns earned more <strong>consistently and repeatably</strong>.</p>
+<div class="table-wrapper">
+<table>
+  <tr><th>Sharpe</th><th>Rating</th><th>Description</th></tr>
+  <tr><td>&gt; 2.0</td><td>Excellent</td><td>Institutional-grade risk/reward</td></tr>
+  <tr><td>1.0 ~ 2.0</td><td>Good</td><td>1 unit excess return per 1 unit risk</td></tr>
+  <tr><td>0.5 ~ 1.0</td><td>Average</td><td>Positive but volatile</td></tr>
+  <tr><td>&lt; 0.5</td><td>Poor</td><td>Not worth the risk</td></tr>
+</table>
+</div>
+
+<h3>2.4 Win Rate</h3>
+<blockquote>
+$$ \text{Win Rate} = \frac{\text{Winning Trades}}{\text{Total Trades}} \times 100\% $$
+</blockquote>
+<p>50 trades, 24 winners → Win Rate = 48%.</p>
+<p><strong>Important</strong>: win rate alone means nothing. A 40% win rate strategy with a profit-loss ratio > 2.5 still makes money. High win rate + tiny profit per win = still losing.</p>
+
+<h3>2.5 Profit-Loss Ratio</h3>
+<blockquote>
+$$ \text{P/L Ratio} = \frac{\text{Avg Profit per Win}}{\text{Avg Loss per Loss}} $$
+</blockquote>
+<p>Avg win = +10%, avg loss = -5% → P/L = 2.0.</p>
+<p>P/L = 2.0, Win Rate = 40% → Expected Return = $0.4 \times 2.0 - 0.6 \times 1.0 = 0.2 > 0$ ✅ Positive Expectancy</p>
+<p>P/L = 1.0, Win Rate = 40% → Expected Return = $0.4 \times 1.0 - 0.6 \times 1.0 = -0.2 < 0$ ❌ Negative Expectancy</p>
+
+<h3>2.6 Calmar Ratio</h3>
+<blockquote>
+$$ \text{Calmar} = \frac{\text{Annualized Return}}{|\text{MDD}|} $$
+</blockquote>
+<p>Two strategies both earn 20% annualized: Strategy A MDD -10% → Calmar = 2.0 (earn 2% per 1% pain). Strategy B MDD -40% → Calmar = 0.5. Higher Calmar = <strong>more money, less pain</strong>.</p>
+
+<hr>
+<h2 id="sec3">3. Stock Profiles</h2>
+<div class="table-wrapper">
+<table>
+  <tr><th>Dimension</th><th>Bank of China (601988.SH)</th><th>SMIC (688981.SH)</th></tr>
+  <tr><td><strong>Board</strong></td><td>Shanghai Main Board</td><td>STAR Market (科创板)</td></tr>
+  <tr><td><strong>Sector</strong></td><td>Banking (State-owned)</td><td>Semiconductor (Foundry)</td></tr>
+  <tr><td><strong>Market Cap</strong></td><td>Mega-cap (Trillion+ RMB)</td><td>Large-cap (Hundreds of billions)</td></tr>
+  <tr><td><strong>Volatility</strong></td><td>Low, steady trends</td><td>High, sharp swings</td></tr>
+  <tr><td><strong>Beta</strong></td><td>Low Beta (Defensive)</td><td>High Beta (Offensive)</td></tr>
+  <tr><td><strong>5-Year B&H Return</strong></td><td class="up">+145.94%</td><td class="up">+167.26%</td></tr>
+  <tr><td><strong>5-Year Annualized Vol</strong></td><td>~18%</td><td>~42%</td></tr>
+</table>
+</div>
+<blockquote>These two stocks represent opposite investment styles: <strong>defensive stability</strong> (BOC) vs <strong>high-beta offense</strong> (SMIC). Their backtest results reveal how dual SMA strategies behave in different market regimes.</blockquote>
+
+<hr>
+<h2 id="sec4">4. Strategy Results Comparison</h2>
+
+<h3 id="sec4-1">4.1 Bank of China (601988.SH) — Three Strategies</h3>
+
+<div class="table-wrapper">
+<table>
+  <tr><th>Metric</th><th>Short SMA(5,15)</th><th>Mid SMA(10,30)</th><th>Long SMA(20,60)</th><th>Buy & Hold</th></tr>
+  <tr><td><strong>Cumulative Return</strong></td><td class="up best">+123.61%</td><td class="up">+115.16%</td><td class="up">+61.93%</td><td class="up">+145.94%</td></tr>
+  <tr><td><strong>Annualized Return</strong></td><td class="up best">17.84%</td><td class="up">17.15%</td><td class="up">10.76%</td><td class="up">20.15%</td></tr>
+  <tr><td><strong>Max Drawdown</strong></td><td class="down best">-11.28%</td><td class="down">-14.72%</td><td class="down">-21.53%</td><td>—</td></tr>
+  <tr><td><strong>Sharpe Ratio</strong></td><td class="best">1.07</td><td>0.98</td><td>0.58</td><td>—</td></tr>
+  <tr><td><strong>Calmar Ratio</strong></td><td class="best">1.58</td><td>1.17</td><td>0.50</td><td>—</td></tr>
+  <tr><td><strong>Win Rate</strong></td><td class="best">48.00%</td><td>47.83%</td><td>38.46%</td><td>—</td></tr>
+  <tr><td><strong>P/L Ratio</strong></td><td>2.04</td><td>4.33</td><td class="best">6.07</td><td>—</td></tr>
+  <tr><td><strong>Total Trades</strong></td><td>50</td><td>23</td><td>13</td><td>—</td></tr>
+  <tr><td><strong>Avg Holding Days</strong></td><td>21.3</td><td>50.3</td><td>92.2</td><td>—</td></tr>
+  <tr><td><strong>Excess vs B&H</strong></td><td class="down">-22.33%</td><td class="down">-30.78%</td><td class="down">-84.01%</td><td>Benchmark</td></tr>
+</table>
+</div>
+
+<h4>Key Findings — BOC</h4>
+<div class="finding">
+<p><strong>1. SMA(5,15) is the only competitive strategy.</strong> Sharpe 1.07 ("Good"), MDD only -11.28%. Best risk-adjusted performance by far.</p>
+<p><strong>2. All three underperformed Buy & Hold.</strong> BOC enjoyed a steady +145.94% uptrend over 5 years. Any timing strategy sitting in cash during the climb misses out.</p>
+<p><strong>3. Longer cycles = worse results.</strong> SMA(20,60) with only 13 trades bet heavily on being lucky — it wasn't. Yet its P/L ratio of 6.07 is the highest: the few trades it made were quality picks.</p>
+<p><strong>4. Win rates cluster at 38%-48%.</strong> All below 50%, but positive P/L ratios maintain positive expectancy — the essence of trend-following: <em>big wins cover small losses</em>.</p>
+</div>
+
+<h3 id="sec4-2">4.2 SMIC (688981.SH) — Three Strategies</h3>
+
+<div class="table-wrapper">
+<table>
+  <tr><th>Metric</th><th>Short SMA(5,15)</th><th>Mid SMA(10,30)</th><th>Long SMA(20,60)</th><th>Buy & Hold</th></tr>
+  <tr><td><strong>Cumulative Return</strong></td><td class="up best">+252.49%</td><td class="up">+105.80%</td><td class="up">+77.55%</td><td class="up">+167.26%</td></tr>
+  <tr><td><strong>Annualized Return</strong></td><td class="up best">29.48%</td><td class="up">16.17%</td><td class="up">13.01%</td><td class="up">22.33%</td></tr>
+  <tr><td><strong>Max Drawdown</strong></td><td class="down">-31.03%</td><td class="down">-44.19%</td><td class="down">-32.15%</td><td>—</td></tr>
+  <tr><td><strong>Sharpe Ratio</strong></td><td class="best">0.84</td><td>0.53</td><td>0.46</td><td>—</td></tr>
+  <tr><td><strong>Calmar Ratio</strong></td><td class="best">0.95</td><td>0.37</td><td>0.40</td><td>—</td></tr>
+  <tr><td><strong>Win Rate</strong></td><td>29.55%</td><td class="best">43.48%</td><td>36.36%</td><td>—</td></tr>
+  <tr><td><strong>P/L Ratio</strong></td><td class="best">4.31</td><td>2.04</td><td>3.22</td><td>—</td></tr>
+  <tr><td><strong>Total Trades</strong></td><td>44</td><td>23</td><td>11</td><td>—</td></tr>
+  <tr><td><strong>Avg Holding Days</strong></td><td>17.8</td><td>33.8</td><td>69.6</td><td>—</td></tr>
+  <tr><td><strong>Excess vs B&H</strong></td><td class="up best">+85.23%</td><td class="down">-61.47%</td><td class="down">-89.71%</td><td>Benchmark</td></tr>
+</table>
+</div>
+
+<h4>Key Findings — SMIC</h4>
+<div class="finding">
+<p><strong>1. SMA(5,15) DECISIVELY beat Buy & Hold!</strong> +252.49% vs +167.26% — excess of <strong>+85.23%</strong>. The ONLY strategy-parameter combo to beat benchmark in this study.</p>
+<p><strong>2. High volatility = trend-following paradise.</strong> SMIC's violent swings create large, well-defined trends — perfect for dual SMA. The fast MA catches the start of moves and exits before reversals.</p>
+<p><strong>3. But the cost is higher drawdowns.</strong> MDD of -31.03% vs BOC's -11.28%. Higher returns come with higher pain. Sharpe 0.84 vs BOC's 1.07 — risk-adjusted efficiency is actually lower.</p>
+<p><strong>4. Win rate of only 29.55% — still massively profitable!</strong> 13 wins out of 44 trades. But avg win = +16.01%, avg loss = -3.72%. <strong>Trend-following doesn't rely on win rate — it relies on P/L ratio.</strong></p>
+<p><strong>5. Mid & long strategies completely failed.</strong> SMA(10,30) MDD hit -44.19%. SMA(20,60) trailed B&H by nearly 90%. For high-volatility stocks, slow parameters miss too much.</p>
+</div>
+
+<!-- Visualization Section -->
+<h3 id="sec4-3">4.3 Strategy Visualization</h3>
+<p>Beyond numbers, we present the results graphically with two types of charts: <strong>Strategy Chart</strong> (5-panel multi-view) and <strong>Radar Chart</strong> (6-dimensional strategy comparison).</p>
+
+<h4>4.3.1 Bank of China (601988.SH)</h4>
+
+<div class="chart-container">
+  <img src="601988_strategy_chart.png" alt="BOC Strategy Chart" loading="lazy">
+  <div class="chart-caption">
+    <strong>Strategy Chart</strong> — 4 rows, 5 panels:<br>
+    <strong>Row 1 (3 subplots)</strong>: Price + SMA lines + Golden/Death cross markers for each strategy. Long-term signals are sparse; short-term trades frequently.<br>
+    <strong>Row 2 Left</strong>: Daily volume. <strong>Row 2 Right</strong>: Position heatmap showing held/cash status of all 3 strategies over time.<br>
+    <strong>Row 3</strong>: Cumulative NAV comparison — Short (red) tracks closest to B&H (gray). Long (purple) lags significantly.<br>
+    <strong>Row 4</strong>: Drawdown comparison — Short strategy has the shallowest drawdowns.
+  </div>
+</div>
+
+<div class="chart-container">
+  <img src="601988_strategy_radar.png" alt="BOC Radar Chart" loading="lazy">
+  <div class="chart-caption">
+    <strong>Radar Chart</strong> — 6 dimensions normalized: Cumulative Return, Annualized Return, Sharpe, Calmar, Win Rate, P/L Ratio. Short (red) dominates Sharpe/Calmar/Win Rate. Long (blue) only leads in P/L Ratio.
+  </div>
+</div>
+
+<h4>4.3.2 SMIC (688981.SH)</h4>
+
+<div class="chart-container">
+  <img src="688981_strategy_chart.png" alt="SMIC Strategy Chart" loading="lazy">
+  <div class="chart-caption">
+    <strong>Strategy Chart</strong> — SMIC shows extreme volatility. After a long consolidation near 40 RMB, it surged in H2 2024. The short strategy (red) aggressively captured entries during the rally and exited before the crash.<br>
+    <strong>NAV comparison</strong>: Short (red) NAV curve towers above B&H (gray). Mid (yellow) and Long (purple) strategies clearly lag.<br>
+    <strong>Drawdown</strong>: Mid strategy suffered deepest (-44%). Short (-31%) recovered faster.
+  </div>
+</div>
+
+<div class="chart-container">
+  <img src="688981_strategy_radar.png" alt="SMIC Radar Chart" loading="lazy">
+  <div class="chart-caption">
+    <strong>Radar Chart</strong> — Short (red) dominates Cumulative Return, Annualized Return, Sharpe, Calmar, and P/L Ratio. Only trails in Win Rate (29.55%). Mid (yellow) has the highest Win Rate (43.48%) but poor P/L and Calmar. Long (blue) is mediocre across the board.
+  </div>
+</div>
+
+<!-- Cross Comparison -->
+<h3 id="sec4-4">4.4 Cross-Stock, Cross-Strategy Comparison</h3>
+
+<div class="table-wrapper">
+<table>
+  <tr><th>Dimension</th><th>Bank of China</th><th>SMIC</th></tr>
+  <tr><td><strong>Optimal Parameters</strong></td><td>Short SMA(5,15)</td><td>Short SMA(5,15)</td></tr>
+  <tr><td><strong>Beat B&H?</strong></td><td class="down">No (-22.33%)</td><td class="up">YES (+85.23%)</td></tr>
+  <tr><td><strong>Optimal Sharpe</strong></td><td class="best">1.07 (higher)</td><td>0.84</td></tr>
+  <tr><td><strong>Optimal MDD</strong></td><td class="best">-11.28% (smaller)</td><td class="down">-31.03%</td></tr>
+  <tr><td><strong>Optimal Win Rate</strong></td><td class="best">48.00% (higher)</td><td>29.55%</td></tr>
+  <tr><td><strong>Optimal P/L Ratio</strong></td><td>2.04</td><td class="best">4.31 (higher)</td></tr>
+  <tr><td><strong>Mid-term Viable?</strong></td><td>Marginally</td><td>No</td></tr>
+  <tr><td><strong>Long-term Viable?</strong></td><td class="down">Clearly No</td><td class="down">Definitely No</td></tr>
+</table>
+</div>
+
+<h4>Core Pattern</h4>
+<div class="table-wrapper">
+<table>
+  <tr><th></th><th>Low-Vol Stocks (Bank)</th><th>High-Vol Stocks (Semiconductor)</th></tr>
+  <tr><td><strong>Short SMA(5,15)</strong></td><td>Effective risk control, trails B&H</td><td class="best"><strong>Highly effective</strong>, crushes B&H but higher DD</td></tr>
+  <tr><td><strong>Mid SMA(10,30)</strong></td><td>Barely usable</td><td>Not recommended</td></tr>
+  <tr><td><strong>Long SMA(20,60)</strong></td><td>Not recommended</td><td>Not recommended</td></tr>
+</table>
+</div>
+
+<hr>
+<h2 id="sec5">5. Use Cases & Practical Takeaways</h2>
+
+<h3>5.1 Where Dual SMA Thrives</h3>
+
+<h4>Ideal Conditions</h4>
+<div class="table-wrapper">
+<table>
+  <tr><th>Condition</th><th>Why</th><th>Example</th></tr>
+  <tr><td><strong>High-volatility stocks</strong></td><td>Big trend moves → big P/L ratios</td><td>SMIC SMA(5,15): P/L 4.31</td></tr>
+  <tr><td><strong>Strongly trending markets</strong></td><td>Clear directional waves, not sideways chop</td><td>Semiconductor sector cycles</td></tr>
+  <tr><td><strong>Short parameters first</strong></td><td>5/15 catches trends early</td><td>Optimal for BOTH stocks</td></tr>
+  <tr><td><strong>Can tolerate 30%+ DD</strong></td><td>High-beta stocks bring high drawdowns</td><td>SMIC MDD -31.03%</td></tr>
+</table>
+</div>
+
+<h4>Where It Struggles</h4>
+<div class="table-wrapper">
+<table>
+  <tr><th>Condition</th><th>Why</th><th>Example</th></tr>
+  <tr><td><strong>Long slow bull runs</strong></td><td>Cash periods miss the climb</td><td>BOC +145.94% slow uptrend</td></tr>
+  <tr><td><strong>Choppy/sideways markets</strong></td><td>Frequent false crosses, cost accumulation</td><td>—</td></tr>
+  <tr><td><strong>Low-volatility stocks</strong></td><td>Trends too small to cover trading costs</td><td>—</td></tr>
+  <tr><td><strong>Mid/long parameters (>= 10/30)</strong></td><td>Severe signal lag</td><td>Both stocks' longer params failed</td></tr>
+</table>
+</div>
+
+<h3>5.2 Five Core Takeaways</h3>
+
+<div class="card">
+<h4>Takeaway 1: Short-term SMA is the "Optimal Default"</h4>
+<p>SMA(5,15) was the best performer for BOTH stocks. This is not a coincidence: SMA(15) already filters daily noise sufficiently; SMA(5) keeps signals timely; ~10 signals/year provides statistical robustness.</p>
+<p><strong>Start with 5/15 as the default.</strong> Don't reach for longer cycles out of a false sense of "safety."</p>
+</div>
+
+<div class="card">
+<h4>Takeaway 2: Stock Selection >>> Parameter Tuning</h4>
+<p>BOC's best strategy trailed B&H by <span class="down"><strong>-22.33%</strong></span>. SMIC's best beat B&H by <span class="up"><strong>+85.23%</strong></span>. That's a <strong>107 percentage point</strong> difference — driven entirely by <em>which stock</em>, not which parameters.</p>
+<blockquote>The success of a dual SMA strategy depends far more on the stock's characteristics (volatility, trendiness) than on fine-tuning parameters.</blockquote>
+</div>
+
+<div class="card">
+<h4>Takeaway 3: Embrace "Imperfect" Win Rates</h4>
+<p>SMIC's short strategy had a 29.55% win rate — yet was the ONLY combo to beat B&H. Great trend-following strategies follow the pattern: <strong>fewer wins, bigger wins.</strong> Chasing high win rates often leads to "cutting profits short, letting losses run."</p>
+<p><strong>The math</strong>: with a 30% win rate, you only need P/L > $(1/0.3) - 1 = 2.33$ for positive expectancy.</p>
+</div>
+
+<div class="card">
+<h4>Takeaway 4: Sharpe & Calmar > Raw Returns</h4>
+<p>BOC (+123.61%) trails SMIC (+252.49%) in raw return, but beats it in Sharpe (1.07 vs 0.84) and Calmar (1.58 vs 0.95). On a risk-adjusted basis, BOC's strategy is actually <em>higher quality</em> — generating solid returns with far less pain.</p>
+<p><strong>Always evaluate at least 3 metrics together</strong>: Sharpe, MDD, and Cumulative Return.</p>
+</div>
+
+<div class="card">
+<h4>Takeaway 5: Don't Expect Dual SMA to "Beat Everything"</h4>
+<p>Out of 6 strategy-parameter combos, only 1 beat buy-and-hold. This doesn't invalidate the strategy. Its real-world value lies in:</p>
+<div class="table-wrapper">
+<table>
+  <tr><th>Value</th><th>Description</th></tr>
+  <tr><td><strong>Risk Control</strong></td><td>Cash position avoids major downturns</td></tr>
+  <tr><td><strong>Capital Efficiency</strong></td><td>Cash can earn money-market returns during idle periods</td></tr>
+  <tr><td><strong>Rule Discipline</strong></td><td>Mechanical execution eliminates emotional trading</td></tr>
+  <tr><td><strong>Portfolio Diversification</strong></td><td>Time-diversified exposure vs 100% fully invested</td></tr>
+</table>
+</div>
+</div>
+
+<h3>5.3 Improvement Roadmap</h3>
+<div class="table-wrapper">
+<table>
+  <tr><th>Priority</th><th>Direction</th><th>Expected Effect</th></tr>
+  <tr><td class="best">P1</td><td>Add ADX trend filter (ADX > 25 to allow signals)</td><td>Reduce false signals in choppy markets</td></tr>
+  <tr><td class="best">P1</td><td>Add ATR stop-loss (e.g., -2x ATR forced exit)</td><td>Lower MDD, especially for high-vol stocks</td></tr>
+  <tr><td>P2</td><td>Multi-stock portfolio (5-10 stocks simultaneously)</td><td>Diversify single-stock concentration risk</td></tr>
+  <tr><td>P2</td><td>Parameter optimization (grid search short/long combos)</td><td>Potentially improve returns further</td></tr>
+  <tr><td>P3</td><td>EMA instead of SMA (exponential weighting)</td><td>May reduce signal lag</td></tr>
+</table>
+</div>
+
+<hr>
+<h2 id="appendix">Appendix: Complete Metrics Data</h2>
+
+<h3>Bank of China (601988.SH)</h3>
+<div class="table-wrapper">
+<table>
+  <tr><th>Metric</th><th>Short SMA(5,15)</th><th>Mid SMA(10,30)</th><th>Long SMA(20,60)</th></tr>
+  <tr><td>Cumulative Return</td><td class="up">+123.61%</td><td class="up">+115.16%</td><td class="up">+61.93%</td></tr>
+  <tr><td>Buy & Hold Return</td><td class="up">+145.94%</td><td class="up">+145.94%</td><td class="up">+145.94%</td></tr>
+  <tr><td>Excess Return</td><td class="down">-22.33%</td><td class="down">-30.78%</td><td class="down">-84.01%</td></tr>
+  <tr><td>Annualized Return</td><td class="up">17.84%</td><td class="up">17.15%</td><td class="up">10.76%</td></tr>
+  <tr><td>Max Drawdown</td><td class="down">-11.28%</td><td class="down">-14.72%</td><td class="down">-21.53%</td></tr>
+  <tr><td>MDD Date</td><td>2023-07-07</td><td>2023-07-24</td><td>2023-10-25</td></tr>
+  <tr><td>Sharpe Ratio</td><td>1.07</td><td>0.98</td><td>0.58</td></tr>
+  <tr><td>Calmar Ratio</td><td>1.58</td><td>1.17</td><td>0.50</td></tr>
+  <tr><td>Win Rate</td><td>48.00%</td><td>47.83%</td><td>38.46%</td></tr>
+  <tr><td>P/L Ratio</td><td>2.04</td><td>4.33</td><td>6.07</td></tr>
+  <tr><td>Total Trades</td><td>50</td><td>23</td><td>13</td></tr>
+  <tr><td>Winning Trades</td><td>24</td><td>11</td><td>5</td></tr>
+  <tr><td>Avg Win</td><td class="up">+3.46%</td><td class="up">+5.80%</td><td class="up">+12.61%</td></tr>
+  <tr><td>Avg Loss</td><td class="down">-1.69%</td><td class="down">-1.34%</td><td class="down">-2.08%</td></tr>
+  <tr><td>Avg Holding Days</td><td>21.3</td><td>50.3</td><td>92.2</td></tr>
+</table>
+</div>
+
+<h3>SMIC (688981.SH)</h3>
+<div class="table-wrapper">
+<table>
+  <tr><th>Metric</th><th>Short SMA(5,15)</th><th>Mid SMA(10,30)</th><th>Long SMA(20,60)</th></tr>
+  <tr><td>Cumulative Return</td><td class="up best">+252.49%</td><td class="up">+105.80%</td><td class="up">+77.55%</td></tr>
+  <tr><td>Buy & Hold Return</td><td class="up">+167.26%</td><td class="up">+167.26%</td><td class="up">+167.26%</td></tr>
+  <tr><td>Excess Return</td><td class="up best">+85.23%</td><td class="down">-61.47%</td><td class="down">-89.71%</td></tr>
+  <tr><td>Annualized Return</td><td class="up best">29.48%</td><td class="up">16.17%</td><td class="up">13.01%</td></tr>
+  <tr><td>Max Drawdown</td><td class="down">-31.03%</td><td class="down">-44.19%</td><td class="down">-32.15%</td></tr>
+  <tr><td>MDD Date</td><td>2025-07-16</td><td>2024-05-24</td><td>2026-05-18</td></tr>
+  <tr><td>Sharpe Ratio</td><td>0.84</td><td>0.53</td><td>0.46</td></tr>
+  <tr><td>Calmar Ratio</td><td>0.95</td><td>0.37</td><td>0.40</td></tr>
+  <tr><td>Win Rate</td><td>29.55%</td><td>43.48%</td><td>36.36%</td></tr>
+  <tr><td>P/L Ratio</td><td>4.31</td><td>2.04</td><td>3.22</td></tr>
+  <tr><td>Total Trades</td><td>44</td><td>23</td><td>11</td></tr>
+  <tr><td>Winning Trades</td><td>13</td><td>10</td><td>4</td></tr>
+  <tr><td>Avg Win</td><td class="up">+16.01%</td><td class="up">+9.69%</td><td class="up">+15.66%</td></tr>
+  <tr><td>Avg Loss</td><td class="down">-3.72%</td><td class="down">-4.76%</td><td class="down">-4.86%</td></tr>
+  <tr><td>Avg Holding Days</td><td>17.8</td><td>33.8</td><td>69.6</td></tr>
+</table>
+</div>
+
+<hr>
+<footer>
+  <p>This report is based on quantitative backtest data. All results are historical simulations and do NOT constitute investment advice.<br>Real-world trading must also consider liquidity, market impact, and policy changes.</p>
+  <p style="margin-top:8px;color:var(--text-secondary)">Data: Tushare Pro &nbsp;|&nbsp; Generated: 2026-07-09 &nbsp;|&nbsp; Project: BA-Quant-3</p>
+</footer>
+</main>
+</body>
+</html>
